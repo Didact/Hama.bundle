@@ -114,7 +114,7 @@ def GetMetadata(media, movie, error_log, id):
 
     defaulttvdbseason, episodeoffset, s1_mapping = anime_core(anime)
 
-    if not tvdb_numbering and not TVDB_id:                                                                                                          TVDB_id2  = TVDBid
+    if not tvdb_numbering and not TVDB_id:                                                                                                          TVDB_id  = TVDBid
     if tvdb_numbering and AniDBid and TVDBid.isdigit() and defaulttvdbseason == '1' and episodeoffset == '0' and s1_mapping == 0 and not AniDB_id:  AniDB_id2 = AniDBid
     Log.Info("[+] AniDBid: {:>5}, TVDBid: {:>6}, defaulttvdbseason: {:>3}, offset: {:>3}, name: {}".format(AniDBid, TVDBid, 
       ("({})".format(anime.get('defaulttvdbseason')) if anime.get('defaulttvdbseason')!=defaulttvdbseason else '')+defaulttvdbseason, episodeoffset, GetXml(anime, 'name')))
