@@ -5,33 +5,43 @@
 # - search word pick serie, do levenstein i partially match only (few chars difference)
 
 ### Imports ###
-import common            # Functions: Logging, SaveFile, LoadFile, metadata_download, WriteLogs, cleanse_title, GetMetadata, UpdateMeta, UpdateMetaField
-                         # Functions: GetMeta, natural_sort_key, SaveDict, Dict, GetXml, GetStatusCode
-from common import Dict  #import Simkl       # Functions: GetMetadata, Register                                      Variables: None
-import AnimeLists        # Functions: GetMetadata, GetAniDBTVDBMap, GetAniDBMovieSet, MergeMaps  Variables: MAPPING_FEEDBACK
-import AniDB             # Functions: GetMetadata, Search, GetAniDBTitlesDB, GetAniDBTitle       Variables: ANIDB_SERIE_URL
-import TheTVDBv2         # Functions: GetMetadata, Search                                        Variables: TVDB_SERIE_URL, TVDB_IMAGES_URL
-import TheMovieDb        # Functions: GetMetadata, Search                                        Variables: None
-import MyAnimeList       # Functions: GetMetadata                                                Variables: None
-import OMDb              # Functions: GetMetadata                                                Variables: None
-import FanartTV          # Functions: GetMetadata                                                Variables: None
-import Plex              # Functions: GetMetadata                                                Variables: None
-import TVTunes           # Functions: GetMetadata                                                Variables: None
-import Local             # Functions: GetMetadata                                                Variables: None
-
+# Python Modules #
 import re
 import os
 import datetime
-from io import open
-      
+# HAMA Modules #
+import common            # Functions: GetPlexLibraries, write_logs, UpdateMeta                   Variables: PlexRoot, FieldListMovies, FieldListSeries, FieldListEpisodes, DefaultPrefs, SourceList
+from common import Dict
+import AnimeLists        # Functions: GetMetadata, GetAniDBTVDBMap, GetAniDBMovieSets            Variables: AniDBMovieSets
+import tvdb4             # Functions: GetMetadata                                                Variables: None
+import TheTVDBv2         # Functions: GetMetadata, Search                                        Variables: None
+import AniDB             # Functions: GetMetadata, Search, GetAniDBTitlesDB                      Variables: None
+import TheMovieDb        # Functions: GetMetadata, Search                                        Variables: None
+import FanartTV          # Functions: GetMetadata                                                Variables: None
+import Plex              # Functions: GetMetadata                                                Variables: None
+import TVTunes           # Functions: GetMetadata                                                Variables: None
+import OMDb              # Functions: GetMetadata                                                Variables: None
+#import MyAnimeList       # Functions: GetMetadata                                                Variables: None
+import Local             # Functions: GetMetadata                                                Variables: None
+import anidb34           # Functions: AdjustMapping                                              Variables: None
+
 ### Variables ###
   
 ### Pre-Defined ValidatePrefs function Values in "DefaultPrefs.json", accessible in Settings>Tab:Plex Media Server>Sidebar:Agents>Tab:Movies/TV Shows>Tab:HamaTV #######
 def ValidatePrefs():
   Log.Info("".ljust(157, '='))
-  Log.Info ("ValidatePrefs(), PlexRoot: "+common.PlexRoot)
+  Log.Info ("ValidatePrefs(), PlexRoot: "+Core.app_support_path)
+
+  #Reset to default agent setting
+  Prefs['reset_to_defaults']  #avoid logs message on first accesslike: 'Loaded preferences from DefaultPrefs.json' + 'Loaded the user preferences for com.plexapp.agents.lambda'
+  filename_xml  = os.path.join(common.PlexRoot, 'Plug-in Support', 'Preferences', 'com.plexapp.agents.hama.xml')
+  filename_json = os.path.join(common.PlexRoot, 'Plug-ins', 'Hama.bundle', 'Contents', 'DefaultPrefs.json')
+  Log.Info ("[?] agent settings json file: '{}'".format(os.path.relpath(filename_json, common.PlexRoot)))
+  Log.Info ("[?] agent settings xml prefs: '{}'".format(os.path.relpath(filename_xml , common.PlexRoot)))
+  if Prefs['reset_to_defaults'] and os.path.isfile(filename_xml):  os.remove(filename_xml)  #delete filename_xml file to reset settings to default
+
   PrefsFieldList = list(set(common.FieldListMovies + common.FieldListSeries + common.FieldListEpisodes + common.DefaultPrefs))  # set is un-ordered lsit so order is lost
-  filename       = os.path.join(common.PlexRoot, 'Plug-ins', 'Hama.bundle', 'Contents', 'DefaultPrefs.json')
+  filename       = os.path.join(Core.app_support_path, 'Plug-ins', 'Hama.bundle', 'Contents', 'DefaultPrefs.json')
   if os.path.isfile(filename):
     try:   json = JSON.ObjectFromString(Core.storage.load(filename), encoding=None)  ### Load 'DefaultPrefs.json' to have access to default settings ###
     except Exception as e:  json = None; Log.Info("Error :"+str(e)+", filename: "+filename)
@@ -64,6 +74,7 @@ def Start():
   #HTTP.CacheTime = CACHE_1DAY  # in sec: CACHE_1MINUTE, CACHE_1HOUR, CACHE_1DAY, CACHE_1WEEK, CACHE_1MONTH
   HTTP.CacheTime = CACHE_1MINUTE*30
   ValidatePrefs()
+  common.GetPlexLibraries()
   # Load core files
   AnimeLists.GetAniDBTVDBMap()
   AnimeLists.GetAniDBMovieSets()
@@ -72,7 +83,7 @@ def Start():
 ### Movie/Serie search ###################################################################################################################################################
 def Search(results, media, lang, manual, movie):
   from common import Log  #Import here for startup logging to go to the plex pms log
-  orig_title = media.title if movie else media.show
+  orig_title = media.name if movie else media.show
   Log.Open(media=media, movie=movie, search=True)
   Log.Info('=== Search() ==='.ljust(157, '='))
   Log.Info("title: '%s', name: '%s', filename: '%s', manual: '%s', year: '%s'" % (orig_title, media.name, media.filename, str(manual), media.year))  #if media.filename is not None: filename = String.Unquote(media.filename) #auto match only
@@ -88,7 +99,8 @@ def Search(results, media, lang, manual, movie):
   
   ### Check if a guid is specified "Show name [anidb-id]" ###
   Log.Info('--- force id ---'.ljust(157, '-'))
-  match = re.search(r"(?P<show>.*?) ?\[(?P<source>([a-z0-9]*))-(tt)?(?P<guid>[0-9]{1,7})\]", orig_title, re.IGNORECASE) if ' [' in orig_title else None
+  if orig_title and orig_title.isdigit():  orig_title = "xxx [tvdb-{}]".format(orig_title)  #Support tvdbid as title, allow to support Xattr from FileBot with tvdbid filled in
+  match = re.search(r"(?P<show>.*?) ?\[(?P<source>(anidb(|[2-9])|tvdb(|[2-9])|tmdb|tsdb|imdb))-(?P<guid>[^\[\]]*)\]", orig_title, re.IGNORECASE)
   if match is not None:
     guid=match.group('source') + '-' + match.group('guid')
     if guid.startswith('anidb') and not movie and max(map(int, media.seasons.keys()))>1:  Log.Info('[!] multiple seasons = tvdb numbering, BAKA!')
@@ -117,12 +129,12 @@ def Update(metadata, media, lang, force, movie):
   Log.Info("start: {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")))
   
   # Major meta source hard required orders (ignoring id info):
-  #   mappingList:                  AnimeLists->TheTVDBv2/common/AniDB->AdjustMapping
+  #   mappingList:                  AnimeLists->TheTVDBv2/tvdb4/AniDB->AdjustMapping
   #   mappingList['season_map']:    AnimeLists->TheTVDBv2->AdjustMapping
   #   mappingList['relations_map']: AniDB->AdjustMapping
-  #   mappingList['absolute_map']:  common->TheTVDBv2->AniDB
+  #   mappingList['absolute_map']:  tvdb4->TheTVDBv2->AniDB
   dict_AnimeLists, AniDBid, TVDBid, TMDbid, IMDbid, mappingList =  AnimeLists.GetMetadata(media, movie, error_log, metadata.id)
-  dict_tvdb4                                                    =      common.GetMetadata(media, movie,                  source,          TVDBid,                 mappingList)
+  dict_tvdb4                                                    =       tvdb4.GetMetadata(media, movie,                  source,          TVDBid,                 mappingList)
   dict_TheTVDB,                             IMDbid              =   TheTVDBv2.GetMetadata(media, movie, error_log, lang, source, AniDBid, TVDBid, IMDbid,         mappingList, Dict(AniDB, 'movie'))
   dict_AniDB, ANNid, MALid                                      =       AniDB.GetMetadata(media, movie, error_log,       source, AniDBid, TVDBid, AnimeLists.AniDBMovieSets, mappingList)
   dict_TheMovieDb,          TSDbid, TMDbid, IMDbid              =  TheMovieDb.GetMetadata(media, movie,                                   TVDBid, TMDbid, IMDbid)
@@ -130,17 +142,16 @@ def Update(metadata, media, lang, force, movie):
   dict_Plex                                                     =        Plex.GetMetadata(metadata, error_log, TVDBid, Dict(dict_TheTVDB, 'title'))
   dict_TVTunes                                                  =     TVTunes.GetMetadata(metadata, Dict(dict_TheTVDB, 'title'), Dict(mappingList, AniDBid, 'name'))  #Sources[m:eval('dict_'+m)]
   dict_OMDb                                                     =        OMDb.GetMetadata(movie, IMDbid)  #TVDBid=='hentai'
-  dict_MyAnimeList                                              = MyAnimeList.GetMetadata(movie, MALid )
+  #dict_MyAnimeList                                              = MyAnimeList.GetMetadata(movie, MALid )
   dict_Local                                                    =       Local.GetMetadata(media, movie)
-  if common.AdjustMapping(source, mappingList, dict_AniDB, dict_TheTVDB):
+  if anidb34.AdjustMapping(source, mappingList, dict_AniDB, dict_TheTVDB):
     dict_AniDB, ANNid, MALid                                    =       AniDB.GetMetadata(media, movie, error_log,       source, AniDBid, TVDBid, AnimeLists.AniDBMovieSets, mappingList)
   Log.Info('=== Update() ==='.ljust(157, '='))
   Log.Info("AniDBid: '{}', TVDBid: '{}', TMDbid: '{}', IMDbid: '{}', ANNid:'{}', MALid: '{}'".format(AniDBid, TVDBid, TMDbid, IMDbid, ANNid, MALid))
   common.write_logs(media, movie, error_log, source, AniDBid, TVDBid)
   common.UpdateMeta(metadata, media, movie, {'AnimeLists': dict_AnimeLists, 'AniDB':       dict_AniDB,       'TheTVDB': dict_TheTVDB, 'TheMovieDb': dict_TheMovieDb, 
                                              'FanartTV':   dict_FanartTV,   'tvdb4':       dict_tvdb4,       'Plex':    dict_Plex,    'TVTunes':    dict_TVTunes, 
-                                             'OMDb':       dict_OMDb,       'MyAnimeList': dict_MyAnimeList, 'Local':   dict_Local}, mappingList)
-  Log.Info('=== Update() ==='.ljust(157, '='))
+                                             'OMDb':       dict_OMDb,       'Local':   dict_Local}, mappingList)  #'MyAnimeList': dict_MyAnimeList, 
   Log.Info("end: {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")))
   Log.Close()
 

@@ -175,9 +175,10 @@ Plex main folder location:
 
     * '%LOCALAPPDATA%\Plex Media Server\'                                        # Windows Vista/7/8
     * '%USERPROFILE%\Local Settings\Application Data\Plex Media Server\'         # Windows XP, 2003, Home Server
-    * '$HOME/Library/Application Support/Plex Media Server/'                     # Mac OS
+    * (userdir)/library/Logs/Plex Media Server/PMS Plugin Logs                   # Mac OS
     * '$PLEX_HOME/Library/Application Support/Plex Media Server/',               # Linux
     * '/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/', # Debian,Fedora,CentOS,Ubuntu
+    * '/var/lib/plex/Plex Media Server/',                                        # Arch
     * '/usr/local/plexdata/Plex Media Server/',                                  # FreeBSD
     * '/usr/pbi/plexmediaserver-amd64/plexdata/Plex Media Server/',              # FreeNAS
     * '${JAIL_ROOT}/var/db/plexdata/Plex Media Server/',                         # FreeNAS
@@ -218,8 +219,11 @@ Install issue under linux are generally permission issues...
 - if having: File "bundles-release/Framework.bundle-dist/Contents/Resources/Versions/2/Python/Framework/components/storage.py", line 81, in save IOError: [Errno 13] Permission denied: '/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/._StoredValues'
 
 touch /var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/._StoredValues
+
 chmod 777 /var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/._StoredValues
+
 chown plex:plex /var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/._StoredValues
+
 service plexmediaserver restart
 
     
@@ -257,10 +261,10 @@ To avoid already solved issues, and make sure you do include all relevant logs i
 - including all the following logs: (location: https://support.plex.tv/hc/en-us/articles/200250417-Plex-Media-Server-Log-Files)
    - [...]/Plex Media Server/Logs/PMS Plugin Logs/com.plexapp.agents.hama.log (Agent logs)
    - [...]/Plex Media Server/Logs/PMS Plugin Logs/com.plexapp.system.log (show why the agent cannot launch)
-   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/root_folder.filelist.log (episodes info)
-   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/root_folder.scanner.log (episodes info)
-   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/root_folder.agent-search.log (guid assignment)
-   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/root_folder.agent-update.log (metadata update)
+   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/series_root_folder.filelist.log (episodes info)
+   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/series_root_folder.scanner.log (episodes info)
+   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/(Library_name/)series_root_folder.agent-search.log (guid assignment)
+   - [...]/Plex Media Server/Plug-in Support/Data/com.plexapp.agents.hama/DataItems/_Logs/(Library_name/)series_root_folder.agent-update.log (metadata update)
    - Screen capture to illustrate if needed. Above logs are still mandatory
 
 Support thread for agent:
