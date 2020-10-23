@@ -22,7 +22,7 @@ def GetMetadata(movie, MALid):
   if not MALid or not MALid.isdigit():  return MyAnimeList_dict
 
   Log.Info("--- series ---".ljust(157, '-'))
-  xml = common.LoadFile(filename=MALid+".xml", relativeDirectory=os.path.join('MyAnimeList', 'xml'), url=MAL_HTTP_API_URL + MALid, cache=CACHE_1WEEK)
+  xml = common.LoadFile(filename=MALid+".xml", relativeDirectory=os.path.join('MyAnimeList', 'xml'), url=MAL_HTTP_API_URL + MALid)
   if isinstance(xml, str):
     Log.Error('Invalid str returned: "{}"'.format(xml))
   elif xml:
@@ -46,11 +46,11 @@ def GetMetadata(movie, MALid):
       
     Log.Info("--- images ---".ljust(157, '-'))
     for item in xml.xpath('//anime/covers/cover'          ):
-      Log.Info("[ ] poster: {}".format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), 50, None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'posters', item.text)))
+      Log.Info("[ ] poster: {}".format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), common.poster_rank('MyAnimeList', 'posters'), None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'posters', item.text)))
     for item in xml.xpath('//anime/backgrounds/background'):
-      Log.Info("[ ] art: {}"   .format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), 50, None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'art',     item.text)))
+      Log.Info("[ ] art: {}"   .format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), common.poster_rank('MyAnimeList', 'art'    ), None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'art',     item.text)))
     for item in xml.xpath('//anime/banners/banner'        ):
-      Log.Info("[ ] banner: {}".format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), 50, None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'banners', item.text)))
+      Log.Info("[ ] banner: {}".format(SaveDict(("MyAnimeList/" + "/".join(item.text.split('/')[3:]), common.poster_rank('MyAnimeList', 'banners'), None) if item.text.startswith(MAL_PREFIX) else "", MyAnimeList_dict, 'banners', item.text)))
 
   Log.Info("--- return ---".ljust(157, '-'))
   Log.Info("MyAnimeList_dict: {}".format(DictString(MyAnimeList_dict, 4)))
